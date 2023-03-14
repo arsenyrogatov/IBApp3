@@ -19,57 +19,70 @@ namespace IBApp3
     {
         private const string DecryptPassword = "qwerty";
 
-        private string? _content;
-        public string? Content 
-        { 
-            get { return _content; } 
-            set { _content = value; } 
-        }
+        public string? Content;
         private string? _path;
 
-        private void ReadFile()
+        private void ReadFile(string key)
         {
             if (_path != null)
                 using (StreamReader reader = new (_path))
                 {
-                    _content = CryptoClass.Decrypt(reader.ReadToEnd());
+                    Content = CryptoClass.Decrypt(reader.ReadToEnd(), String.Concat(Enumerable.Repeat(key, 4)));
+                    MessageBox.Show($"'{Content}'");
                     RaisePropertyChanged("DecryptedContent");
                 }
         }
 
-        private void WriteFile()
+        private void WriteFile(string key)
         {
-            if (_path != null && _content != null)
+            if (_path != null && Content != null)
                 using (StreamWriter writer = new(_path, false))
                 {
-                    writer.WriteLine(CryptoClass.Encrypt(_content));
+                    writer.WriteLine(CryptoClass.Encrypt(Content, String.Concat(Enumerable.Repeat(key, 4))));
                 }
         }
 
         public void DecryptFile() //расшифровать файл
         {
-            if (_path == null)
-                SelectFile();
+            SelectFile();
 
             if (_path != null)
             {
-                PasswordWindow passwordWindow = new();
-                passwordWindow.OKButton.Click += (sender, eventArgs) =>
+                string? key = GetKey();
+                if (key != null)
                 {
-                    if (passwordWindow.PasswordBox.Password == DecryptPassword)
-                        ReadFile();
-                    else
-                        MessageBox.Show("Неправильный пароль");
-                    passwordWindow.Close();
-                };
-                passwordWindow.ShowDialog();
+                    ReadFile(key);
+                    MessageBox.Show("Файл расшифрован!");
+                }
             }
+        }
+
+        private string? GetKey ()
+        {
+            PasswordWindow passwordWindow = new();
+            string? password = null;
+            passwordWindow.OKButton.Click += (sender, eventArgs) =>
+            {
+                if (passwordWindow.PasswordBox.Password.Length != 8)
+                    MessageBox.Show("Введите 8 символов!");
+                else
+                    password = passwordWindow.PasswordBox.Password;
+                passwordWindow.Close();
+            };
+            passwordWindow.ShowDialog();
+            return password;
         }
 
         public void EncryptFile() //зашифровать файл
         {
-            WriteFile();
-            MessageBox.Show("Файл сохранен");
+            if (_path == null)
+                SelectFile();
+            string? key = GetKey();
+            if (key != null)
+            {
+                WriteFile(key);
+                MessageBox.Show("Файл сохранен");
+            }
         }
 
         public bool SelectFile() //выбрать файл из диалога
