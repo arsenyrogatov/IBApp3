@@ -12,22 +12,30 @@ namespace IBApp3.Model
 {
     public static class CryptoClass
     {
-        private static readonly byte[] KEY = Enumerable.Range(0, 32).Select(x => (byte)x).ToArray();
-        //генерируем ключ (числа от 0 до 31 в виде байт)
-
         public static string? Encrypt(string? text, string key) //зашифровать файл
         {
             if (text != null)
             {
-                using Aes aes = Aes.Create(); //создаем AES
-                //aes.Key = KEY; //задаем ключ
-                aes.Key = Encoding.UTF8.GetBytes(key); //задаем ключ
-                using MemoryStream ms = new();
-                ms.Write(aes.IV); //создаем поток для зашифрованных данных
-                using CryptoStream cs = new(ms, aes.CreateEncryptor(), CryptoStreamMode.Write, true);
-                //создаем поток для шифрования
-                cs.Write(Encoding.UTF8.GetBytes(text)); //шифруем данные
-                return Convert.ToBase64String(ms.ToArray()); //возвращаем зашифрованную строку
+                using (Aes aesAlgorithm = Aes.Create())
+                {
+                    aesAlgorithm.Key = Encoding.UTF8.GetBytes(key);
+
+                    byte[] encryptedData;
+
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        using (CryptoStream cs = new CryptoStream(ms, aesAlgorithm.CreateEncryptor(), CryptoStreamMode.Write))
+                        {
+                            using (StreamWriter sw = new StreamWriter(cs))
+                            {
+                                sw.Write(text);
+                            }
+                            encryptedData = ms.ToArray();
+                        }
+                    }
+
+                    return Convert.ToBase64String(encryptedData)+"-"+Convert.ToBase64String(aesAlgorithm.IV);
+                }
             }
             else
                 return null;
@@ -37,18 +45,25 @@ namespace IBApp3.Model
         {
             if (base64 != null)
             {
-                using MemoryStream ms = new(Convert.FromBase64String(base64)); //создаем поток данных
-                byte[] iv = new byte[16];
-                ms.Read(iv); //считываем вектор инициализации
-                using Aes aes = Aes.Create(); //создаем AES
-                //aes.Key = KEY; //ключ
-                aes.Key = Encoding.UTF8.GetBytes(key); //ключ
-                aes.IV = iv; //вектор инициализации
-                using CryptoStream cs = new(ms, aes.CreateDecryptor(), CryptoStreamMode.Read, true);
-                //создаем поток для расшифровки
-                using MemoryStream output = new();
-                cs.CopyTo(output); //расшифровываем данные
-                return Encoding.UTF8.GetString(output.ToArray()); //возвращаем расшифрованную строку
+                using (Aes aesAlgorithm = Aes.Create())
+                {
+                    var splitted = base64.Substring(0, base64.Length - 2).Split("-");
+
+                    aesAlgorithm.Key = Encoding.UTF8.GetBytes(key);
+                    aesAlgorithm.IV = Convert.FromBase64String(splitted[1]);
+                    byte[] cipher = Convert.FromBase64String(splitted[0]);
+
+                    using (MemoryStream ms = new MemoryStream(cipher))
+                    {
+                        using (CryptoStream cs = new CryptoStream(ms, aesAlgorithm.CreateDecryptor(), CryptoStreamMode.Read))
+                        {
+                            using (StreamReader sr = new StreamReader(cs))
+                            {
+                                return sr.ReadToEnd();
+                            }
+                        }
+                    }
+                }
             }
             else
                 return null;

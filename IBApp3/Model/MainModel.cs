@@ -17,47 +17,45 @@ namespace IBApp3
 {
     internal class MainModel : BindableBase
     {
-        private const string DecryptPassword = "qwerty";
+        public string? Content; //расшифрованный текст
 
-        public string? Content;
-        private string? _path;
-
-        private void ReadFile(string key)
+        private void ReadFile(string key) //считать файл
         {
+            var _path = GetFilePath();
             if (_path != null)
-                using (StreamReader reader = new (_path))
+                using (StreamReader reader = new(_path))
                 {
-                    Content = CryptoClass.Decrypt(reader.ReadToEnd(), String.Concat(Enumerable.Repeat(key, 4)));
-                    MessageBox.Show($"'{Content}'");
+                    Content = CryptoClass.Decrypt(reader.ReadToEnd(), string.Concat(Enumerable.Repeat(key, 4)));
                     RaisePropertyChanged("DecryptedContent");
+                    _path = null;
                 }
         }
 
-        private void WriteFile(string key)
+        private void WriteFile(string key) //записать файл
         {
+            var _path = GetFilePath();
             if (_path != null && Content != null)
+            {
                 using (StreamWriter writer = new(_path, false))
                 {
-                    writer.WriteLine(CryptoClass.Encrypt(Content, String.Concat(Enumerable.Repeat(key, 4))));
+                    writer.WriteLine(CryptoClass.Encrypt(Content, string.Concat(Enumerable.Repeat(key, 4))));
                 }
+                Content = null;
+                RaisePropertyChanged("DecryptedContent");
+            }
         }
 
         public void DecryptFile() //расшифровать файл
         {
-            SelectFile();
-
-            if (_path != null)
+            var key = GetKey();
+            if (key != null)
             {
-                string? key = GetKey();
-                if (key != null)
-                {
-                    ReadFile(key);
-                    MessageBox.Show("Файл расшифрован!");
-                }
+                ReadFile(key);
+                MessageBox.Show("Файл расшифрован!");
             }
         }
 
-        private string? GetKey ()
+        private string? GetKey() //получить ключ шифрования
         {
             PasswordWindow passwordWindow = new();
             string? password = null;
@@ -75,8 +73,6 @@ namespace IBApp3
 
         public void EncryptFile() //зашифровать файл
         {
-            if (_path == null)
-                SelectFile();
             string? key = GetKey();
             if (key != null)
             {
@@ -85,29 +81,14 @@ namespace IBApp3
             }
         }
 
-        public bool SelectFile() //выбрать файл из диалога
+        public string? GetFilePath() //выбрать файл
         {
             OpenFileDialog openFileDialog = new()
             {
                 Filter = "Текстовые файлы (*.txt)|*.txt",
             };
 
-            if (openFileDialog.ShowDialog() == true)
-            {
-                _path = openFileDialog.FileName;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return (bool)openFileDialog.ShowDialog() ? openFileDialog.FileName : null;
         }
-
-        public void SelectFile(string path) //выбрать файл из драг н дропа
-        {
-            _path = path;
-        }
-
-        
     }
 }
